@@ -23,7 +23,8 @@ class Person:
     def sell(self, stock, quantity, total_revenue):
         if stock not in self.portfolio or self.portfolio[stock]["shares"] < quantity:
             #raise ValueError("Insufficient shares to sell.")
-            print("ignore biught before study")
+
+            pass
 
         else:
             
