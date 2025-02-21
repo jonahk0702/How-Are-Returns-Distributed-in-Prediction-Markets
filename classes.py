@@ -17,7 +17,6 @@ class Person:
         
         self.portfolio[stock]["shares"] += quantity
         self.portfolio[stock]["total_cost"] += total_cost
-        
 
     
     def sell(self, stock, quantity, total_revenue):
@@ -48,10 +47,10 @@ class Person:
             
 
     
-    def get_portfolio_value(self, current_prices):
+    def get_portfolio_value(self, exchange):
         total_value = 0
         for stock, data in self.portfolio.items():
-            stock_value = data["shares"] * current_prices[stock]
+            stock_value = data["shares"] * exchange.stocks[stock].get_latest_price()[1]
             total_value += stock_value
         return total_value
     
@@ -76,7 +75,9 @@ class StockPrices:
         :param timestamp: Datetime object representing the time of the sale.
         :param price: Sale price of the stock.
         """
+
         self.prices.append((timestamp, price))
+        self.prices.sort(key=lambda x: x[0], reverse=False)
 
     
     def get_prices(self):
