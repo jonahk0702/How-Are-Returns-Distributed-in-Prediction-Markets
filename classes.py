@@ -1,5 +1,43 @@
 ## step 1 class Person
 
+
+
+class People:
+    def __init__(self):
+        self.people = {}
+
+    def add_person(self, unique_id, balance):
+        self.people[unique_id] = Person(unique_id, balance)
+    
+    
+    def potential_add_person(self, unique_id):
+        if unique_id not in self.people:
+            self.add_person(unique_id, 0)
+
+    def plot_returns(self, exchange):
+        """
+        Plots the returns for each person in the exchange.
+        
+        :param exchange: StockExchange object.
+        """
+
+        returns = []
+        for person in self.people.values():
+            returns.append(person.get_total_return(exchange))
+        
+
+        plt.hist(returns, bins=20, weights=[100/len(returns)]*len(returns), edgecolor='black')
+
+
+        plt.title('Histogram of Returns')
+        plt.xlabel('Value')
+        plt.ylabel('Frequency (%)')
+
+        # Show the plot
+        plt.show()
+
+
+
 class Person:
     def __init__(self, unique_id, balance):
         self.id = unique_id
@@ -63,7 +101,9 @@ class Person:
         return 0
     
     def get_total_return(self, exchange):
-        total_income = self.total_made + get_portfolio_value(exchange)
+        if self.total_paid == 0:
+            return 0
+        total_income = self.total_made + self.get_portfolio_value(exchange)
         total_expense = self.total_paid
         return (total_income - total_expense) / total_expense
 
