@@ -5,10 +5,10 @@ class Person:
         self.id = unique_id
         self.balance = balance
         self.portfolio = {}  # {stock_symbol: {"shares": total_shares, "total_cost": total_cost}}
-    
+        self.total_paid = 0
+        self.total_made = 0
+
     def buy(self, stock, quantity, total_cost):
-        #if total_cost > self.balance:
-        #    raise ValueError("Insufficient balance to buy the shares.")
         
         self.balance -= total_cost
         
@@ -18,9 +18,12 @@ class Person:
         self.portfolio[stock]["shares"] += quantity
         self.portfolio[stock]["total_cost"] += total_cost
 
+        self.total_paid += total_cost
+
     
     def sell(self, stock, quantity, total_revenue):
         if stock not in self.portfolio or self.portfolio[stock]["shares"] < quantity:
+            print("Ignoring as bought before the study period")
             #raise ValueError("Insufficient shares to sell.")
 
             pass
@@ -34,11 +37,11 @@ class Person:
             self.portfolio[stock]["shares"] -= quantity
             self.portfolio[stock]["total_cost"] -= average_price * quantity
             
-            print(self.balance)
+
             # Add the revenue to the balance
             self.balance += total_revenue
-            print("psot")
-            print(self.balance)
+
+            self.total_made += total_revenue
             
             # Remove the stock entry if all shares are sold
             if self.portfolio[stock]["shares"] == 0:
@@ -58,8 +61,13 @@ class Person:
         if stock in self.portfolio and self.portfolio[stock]["shares"] > 0:
             return self.portfolio[stock]["total_cost"] / self.portfolio[stock]["shares"]
         return 0
+    
+    def get_total_return(self, exchange):
+        total_income = self.total_made + get_portfolio_value(exchange)
+        total_expense = self.total_paid
+        return (total_income - total_expense) / total_expense
 
-## Stock Class
+
 import matplotlib.pyplot as plt
 from datetime import datetime
 
