@@ -45,8 +45,10 @@ class Person:
         self.portfolio = {}  # {stock_symbol: {"shares": total_shares, "total_cost": total_cost}}
         self.total_paid = 0
         self.total_made = 0
+        self.order_history = []
 
-    def buy(self, stock, quantity, total_cost):
+
+    def buy(self, stock, quantity, total_cost, timeStamp):
         
         self.balance -= total_cost
         
@@ -57,16 +59,19 @@ class Person:
         self.portfolio[stock]["total_cost"] += total_cost
 
         self.total_paid += total_cost
+        self.order_history.append({'action':"buy", "stock":stock ,"quant":quantity, "cost":total_cost, "time":timeStamp})
 
     
-    def sell(self, stock, quantity, total_revenue):
+    def sell(self, stock, quantity, total_revenue, timeStamp):
         if stock not in self.portfolio or self.portfolio[stock]["shares"] < quantity:
-            print("Ignoring as bought before the study period")
+            #print("Ignoring as bought before the study period")
             #raise ValueError("Insufficient shares to sell.")
-
+            print(f"SELLING {stock}")
+            print(self.portfolio)
             pass
 
         else:
+            print("REAL SELLLLL")
             
             # Calculate the average price per share
             average_price = self.portfolio[stock]["total_cost"] / self.portfolio[stock]["shares"]
@@ -80,6 +85,8 @@ class Person:
             self.balance += total_revenue
 
             self.total_made += total_revenue
+
+            self.order_history.append({'action':"sell", "stock":stock, "quant":quantity, "cost":total_revenue, "time":timeStamp})
             
             # Remove the stock entry if all shares are sold
             if self.portfolio[stock]["shares"] == 0:
@@ -106,6 +113,30 @@ class Person:
         total_income = self.total_made + self.get_portfolio_value(exchange)
         total_expense = self.total_paid
         return (total_income - total_expense) / total_expense
+    
+    def calculate_holding_times(self):
+        """
+        Calculates the time between purchase and sale for each stock.
+        Returns a list of tuples (stock, holding_time in seconds).
+        """
+        sorted_orders = sorted(self.order_history, key=lambda x: x["time"])
+        buy_times = {}  # Store buy timestamps for each stock
+        holding_times = []
+
+        for order in sorted_orders:
+            stock = order["stock"]
+            if order["action"] == "buy":
+                # Store the first buy timestamp for each stock
+                if stock not in buy_times:
+                    buy_times[stock] = order["time"]
+            elif order["action"] == "sell" and stock in buy_times:
+                holding_time = (order["time"] - buy_times[stock]).total_seconds()
+                holding_times.append((stock, holding_time))
+                # Remove stock after sell to match only the first buy
+                del buy_times[stock]
+
+        return holding_times
+
 
 
 import matplotlib.pyplot as plt
