@@ -1,58 +1,5 @@
-class StockPrices:
-    def __init__(self, symbol):
-        self.symbol = symbol
-        self.prices = []  # List of tuples: [(timestamp, price), ...]
-    
-    def add_price(self, timestamp, price):
-        """
-        Adds a new price with a timestamp.
-        
-        :param timestamp: Datetime object representing the time of the sale.
-        :param price: Sale price of the stock.
-        """
+import datetime
 
-        self.prices.append((timestamp, price))
-        self.prices.sort(key=lambda x: x[0], reverse=False)
-
-    
-    def get_prices(self):
-        """
-        Returns the list of recorded prices.
-        
-        :return: List of tuples [(timestamp, price), ...].
-        """
-        return self.prices
-    
-    def plot_prices(self):
-        """
-        Plots the evolution of stock prices over time.
-        """
-        if not self.prices:
-            print("No prices to plot.")
-            return
-        
-        # Extract timestamps and prices
-        timestamps, prices = zip(*self.prices)
-        
-        # Plot prices
-        plt.figure(figsize=(10, 5))
-        plt.plot(timestamps, prices, marker="o", linestyle="-")
-        plt.title(f"Price Evolution for {self.symbol}")
-        plt.xlabel("Timestamp")
-        plt.ylabel("Price")
-        plt.grid(True)
-        plt.show()
-    
-    def get_latest_price(self):
-        """
-        Retrieves the latest price based on timestamp.
-        
-        :return: Latest price or None if no prices exist.
-        """
-        if not self.prices:
-            return None
-        return self.prices[-1]
-    
 
 class StockPortfolio:
     def __init__(self):
@@ -73,3 +20,31 @@ class StockPortfolio:
     def plot_all_prices(self):
         for stock in self.stocks.values():
             stock.plot_prices()
+
+    def identify_news_events(self, threshold_percent=5, time_window_minutes=5):
+        news_events = []
+        import datetime
+        
+        for symbol, stock in self.stocks.items():
+            prices = stock.get_prices()
+            for i in range(1, len(prices)):
+                prev_time, prev_price = prices[i-1]
+                curr_time, curr_price = prices[i]
+                
+                # Convert timestamps to datetime objects if they're strings
+                if isinstance(prev_time, str):
+                    prev_time = datetime.datetime.strptime(prev_time, '%Y-%m-%d %H:%M:%S%z')  # Note the %z for timezone
+                if isinstance(curr_time, str):
+                    curr_time = datetime.datetime.strptime(curr_time, '%Y-%m-%d %H:%M:%S%z')  # Note the %z for timezone
+                
+                # Calculate time difference in minutes
+                time_diff = (curr_time - prev_time).total_seconds() / 60
+                
+                # Calculate price change percentage
+                price_change_pct = abs((curr_price - prev_price) / prev_price * 100)
+                
+                # If significant price change within the time window
+                if price_change_pct >= threshold_percent and time_diff <= time_window_minutes:
+                    news_events.append((symbol, curr_time, prev_price, curr_price))
+        
+        return news_events

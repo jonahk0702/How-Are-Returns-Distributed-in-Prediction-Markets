@@ -1,0 +1,70 @@
+📈 RETURNS & PROFITABILITY
+
+- realized_return_ratio() – Realized profit relative to cost.
+- mark_to_market_return(exchange) – Realized + unrealized return.
+- get_total_return(exchange) – Net return over all trades.
+- calc_simple_cash_multiple(portfolio) – Cash out vs. cash in.
+- calc_cost_basis_returns(portfolio) – Return based on average cost.
+- return_on_invested_capital(exchange) – (Realized + unrealized) / total capital.
+- per_trade_profitability() – Avg % profit per closed trade.
+- calculate_time_weighted_return(...) – Compounded return over trades.
+- calculate_win_rate(...) – % of profitable closed trades.
+- calculate_profit_factor(...) – Gains / losses.
+- calculate_trade_expectancy() – Avg profit adjusted for win/loss rate.
+- calculate_kelly_criterion() – Optimal % of capital to bet.
+
+
+📉 RISK & VOLATILITY
+
+- calculate_volatility_of_return() – Std dev of returns.
+- calculate_sharpe_ratio(...) – Risk-adjusted return.
+- calculate_risk_of_ruin(...) – Probability of going bust.
+- calculate_max_drawdown() – Worst peak-to-trough drop.
+- calculate_largest_exposure(...) – Largest capital at risk.
+- calculate_stop_loss_index(...) – How consistently stop-losses are used.
+- calculate_position_sizing_score(...) – Aggressiveness of trade sizing.
+- calculate_return_consistency(...) – Lag-1 autocorrelation of returns.
+- calculate_return_skewness(...) – Skew of return distribution.
+- calculate_return_kurtosis(...) – Fat-tailedness of returns.
+- calculate_return_mad(...) – Robust return dispersion.
+- calculate_outlier_ratio(...) – Frequency of return outliers.
+
+
+🧠 BEHAVIORAL / STYLE-BASED
+
+- calculate_momentum_score(exchange) – Trend-following tendency.
+- calculate_mean_reversion_score(exchange) – Contrarian trading tendency.
+- calculate_risk_tolerance() – Preference for low- or high-priced assets.
+- calculate_order_clustering_score(...) – Bursty / rapid-fire trading.
+- calculate_intraday_closeout_rate(...) – Same-day trade closure frequency.
+- calculate_trade_sequencing_score(...) – Tendency to increase size after loss.
+- calculate_trading_confidence(...) – Correlation between trade size and profit.
+- calculate_diversification_index(...) – Spread across markets.
+- calculate_gini_bet_size() – Inequality of trade sizes.
+- calculate_gini_return_distribution() – Inequality of trade outcomes.
+- calculate_news_reaction_metrics(...) – Metrics for reacting to news.
+- calculate_news_alpha(...) – Trader’s edge over market on news.
+- generate_news_reaction_table(...) – Summary of all traders’ news reactions.
+
+
+⌛ TIME & HOLDING-BASED
+
+- calculate_average_holding_time() – Days between buy and sell.
+- calculate_trade_duration() – Avg duration positions held.
+- calculate_relative_exit_efficiency(...) – Did trader sell at good moment?
+- calculate_panic_sell_score(...) – Detects emotion-based exits.
+
+
+📊 MARKET-SPECIFIC / RESOLUTION-BASED
+
+- outcome_adjusted_return(correct_outcomes) – Adjusted return if outcomes are binary.
+- calculate_information_gain_from_price(...) – Did trader infer the market outcome?
+
+
+⚙️ INTERNAL TOOLS / HELPERS
+
+- _get_closed_trades() – Constructs clean matched trades.
+- infer_starting_balance(exchange) – Estimates starting cash.
+- calculate_log_return_from_orders(exchange) – Log return from cash in/out flow.
+- calculate_market_reaction_stats(people, news_events) – Avg market reaction.
+- calculate_average_portfolio_risked(exchange) – Risk per BUY trade.

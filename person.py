@@ -1,3 +1,16 @@
+import scipy.stats
+
+
+from datetime import datetime
+from collections import defaultdict
+import datetime
+import pytz
+from dateutil import parser
+import numpy as np
+from dateutil import parser
+from collections import deque
+import datetime
+
 class Person:
     def __init__(self, unique_id, balance):
         self.id = unique_id
@@ -70,6 +83,156 @@ class Person:
             return self.portfolio[stock]["total_cost"] / self.portfolio[stock]["shares"]
         return 0
     
+    def realized_return_ratio(self):
+        """
+        Calculate the Realized Return Ratio.
+        Formula: (Total Proceeds from Sales − Total Purchase Cost) / Total Purchase Cost
+        """
+        if self.total_paid == 0:
+            return 0  # Avoid division by zero
+        return (self.total_made - self.total_paid) / self.total_paid
+    
+     
+    def mark_to_market_return(self, exchange):
+        """
+        Calculate the Mark-to-Market Return.
+        Formula: (Current Value of Holdings + Total Sales Proceeds) / Total Purchase Cost
+        """
+        if self.total_paid == 0:
+            return 0  # Avoid division by zero
+        portfolio_value = self.get_portfolio_value(exchange)
+        return (portfolio_value + self.total_made) / self.total_paid
+    
+
+    def per_trade_profitability(self):
+        """
+        Calculate Per-Trade Profitability.
+        Formula: (Sell Price − Buy Price) / Buy Price (averaged across all trades)
+        """
+        total_profitability = 0
+        trade_count = 0
+
+        for trade in self.order_history:
+            if trade['action'] == 'sell':
+                stock = trade['stock']
+                sell_price = trade['cost'] / trade['quant']
+                buy_price = self.get_average_price(stock)
+                if buy_price > 0:  # Avoid division by zero
+                    total_profitability += (sell_price - buy_price) / buy_price
+                    trade_count += 1
+
+        if trade_count == 0:
+            return 0  # Avoid division by zero
+
+        return total_profitability / trade_count
+    
+    def return_on_invested_capital(self, exchange):
+        """
+        Calculate Return on Invested Capital (ROIC).
+        Formula: (Total Realized Profit + Unrealized Profit) / Total Capital Invested
+        """
+        if self.total_paid == 0:
+            return 0  # Avoid division by zero
+        
+        portfolio_value = self.get_portfolio_value(exchange)
+        total_profit = (self.total_made - self.total_paid) + portfolio_value
+        return total_profit / self.total_paid
+    
+    def outcome_adjusted_return(self, correct_outcomes=None):
+        """
+        Calculate Outcome-Adjusted Returns for resolved markets.
+        Formula: (Shares in Correct Outcome × $1.00 + Sales Proceeds) / Purchase Cost
+        
+        Parameters:
+        correct_outcomes: Dictionary mapping stock symbols to boolean values 
+                        indicating if they were correct outcomes (True/False)
+        """
+        if self.total_paid == 0:
+            return 0  # Avoid division by zero
+
+        resolved_value = 0
+        
+        # If correct_outcomes is provided, use it to adjust the value
+        if correct_outcomes is not None:
+            for stock, data in self.portfolio.items():
+                if stock in correct_outcomes:
+                    # If correct outcome, value at $1.00 per share, else $0.00
+                    if correct_outcomes[stock]:
+                        resolved_value += data["shares"] * 1.00
+        else:
+            # Default: assume all holdings are correct outcomes
+            for stock, data in self.portfolio.items():
+                resolved_value += data["shares"] * 1.00
+
+        total_income = resolved_value + self.total_made
+        return total_income / self.total_paid
+    
+    def time_weighted_return(self):
+        """
+        Calculate Time-Weighted Return based on order history.
+        Formula: Compounded growth rate of capital over periods.
+        """
+        if len(self.order_history) < 2:
+            return 0
+            
+        # Sort order history by timestamp
+        sorted_history = sorted(self.order_history, key=lambda x: x['time'])
+        
+        # Calculate period returns
+        period_returns = []
+        current_value = 0
+        
+        for i in range(1, len(sorted_history)):
+            prev_trade = sorted_history[i-1]
+            curr_trade = sorted_history[i]
+            
+            # Calculate value change between trades
+            prev_value = current_value
+            
+            if prev_trade['action'] == 'buy':
+                current_value -= prev_trade['cost']
+            else:  # sell
+                current_value += prev_trade['cost']
+                
+            # Only calculate return if we have a meaningful previous value
+            if abs(prev_value) > 0:
+                period_return = (current_value - prev_value) / abs(prev_value)
+                period_returns.append(period_return)
+        
+        # Calculate compounded return
+        twr = 1.0
+        for r in period_returns:
+            twr *= (1 + r)
+            
+        return twr - 1
+    
+    def profit_factor(self):
+        """
+        Calculate Profit Factor.
+        Formula: Total Gains / Total Losses
+        """
+        total_gains = 0
+        total_losses = 0
+
+        for trade in self.order_history:
+            if trade['action'] == 'sell':
+                stock = trade['stock']
+                sell_price = trade['cost'] / trade['quant']
+                # Find corresponding buy price - using average price as approximation
+                avg_price = self.get_average_price(stock)
+                profit = (sell_price - avg_price) * trade['quant']
+                
+                if profit > 0:
+                    total_gains += profit
+                else:
+                    total_losses += abs(profit)
+
+        if total_losses == 0:
+            return float('inf')  # No losses means infinite profit factor
+
+        return total_gains / total_losses
+    
+    
     def get_total_return(self, exchange):
 
 
@@ -79,6 +242,116 @@ class Person:
         total_income = self.total_made + self.get_portfolio_value(exchange)
         total_expense = self.total_paid
         return (total_income - total_expense) / total_expense
+    
+    def calc_simple_cash_multiple(self, portfolio):
+        """
+        orders: list of dicts, each with:
+        """
+        total_spent = 0.0
+        total_proceeds = 0.0
+        holdings = {}  # {symbol: net quantity still held}
+
+        # 1. Aggregate buys/sells
+        for order in self.order_history:
+            symbol = order["stock"]
+            action = order["action"]
+            quant = order["quant"]
+            cost  = order["cost"]
+
+            if action.lower() == "buy":
+                total_spent += cost
+                holdings[symbol] = holdings.get(symbol, 0) + quant
+            elif action.lower() == "sell":
+                total_proceeds += cost
+                holdings[symbol] = holdings.get(symbol, 0) - quant
+
+        # 2. Calculate final notional value of open positions
+        total_remaining_value = 0.0
+        for symbol, qty in holdings.items():
+            if qty > 0:
+                stock_obj = portfolio.get_stock(symbol)
+                # For simplicity, use the latest recorded price
+                latest_price = stock_obj.get_latest_price()[1] if stock_obj.get_latest_price() else 0.0
+                total_remaining_value += qty * latest_price
+
+        # Edge case: if no buy orders or zero total_spent => handle separately
+        if total_spent <= 1e-12:
+            return float("inf") if (total_proceeds + total_remaining_value) > 0 else 0
+
+        return (total_proceeds + total_remaining_value) / total_spent
+    
+
+    
+
+    def calc_cost_basis_returns(self, portfolio):
+        """
+        Maintains an average cost basis per symbol.
+        When sells occur, realize gains vs. that average cost.
+        Finally, compute unrealized gains on leftover shares using the latest price.
+        """
+        from collections import defaultdict
+        # For each symbol, track total shares and total cost
+        shares_held = defaultdict(float)
+        cost_held   = defaultdict(float)
+        realized_gains = 0.0
+
+        for order in self.order_history:
+            symbol = order["stock"]
+            action = order["action"].lower()
+            qty    = order["quant"]
+            cost   = order["cost"]  # total cost of transaction
+
+            if action == "buy":
+                # Update average cost
+                # current avg cost = cost_held[symbol] / shares_held[symbol] (if shares_held>0)
+                # new total cost = cost_held[symbol] + cost
+                # new shares     = shares_held[symbol] + qty
+                total_shares_before = shares_held[symbol]
+                total_cost_before   = cost_held[symbol]
+
+                new_shares = total_shares_before + qty
+                new_cost   = total_cost_before + cost
+
+                shares_held[symbol] = new_shares
+                cost_held[symbol]   = new_cost
+
+            elif action == "sell":
+                # Realize gain = (sell price per share - average cost) * qty
+                if shares_held[symbol] > 0:
+                    avg_cost = cost_held[symbol] / shares_held[symbol]
+                else:
+                    avg_cost = 0.0
+
+                # Price per share from this transaction:
+                # if cost is total revenue from the sell:
+                #   price_per_share = cost / qty
+                # realized gain:
+                realized_gains += (cost / qty - avg_cost) * qty
+
+                # Now reduce cost basis proportionally
+                shares_held[symbol] -= qty
+                cost_held[symbol]   -= avg_cost * qty
+
+        # Now compute unrealized gains for leftover positions
+        unrealized_gains = 0.0
+        for symbol, qty in shares_held.items():
+            if qty > 0:
+                avg_cost = cost_held[symbol] / qty
+                stock_obj = portfolio.get_stock(symbol)
+                latest_price = stock_obj.get_latest_price()[1] if stock_obj.get_latest_price() else 0.0
+                unrealized_gains += (latest_price - avg_cost) * qty
+
+        total_gains = realized_gains + unrealized_gains
+        total_cost = sum(cost_held.values()) + (realized_gains)  # total cost that was originally put in
+        # The above might need adjustments depending on how you define "total capital"
+
+        # Return ratio:
+        if total_cost <= 1e-12:
+            return float("inf") if total_gains > 0 else 0
+
+        return total_gains / total_cost
+    
+
     
     def calculate_average_holding_time(self):
         """
@@ -481,8 +754,7 @@ class Person:
     
         return min(max(stop_loss_index, 0.01), 0.99)
     
-    from dateutil import parser
-    from collections import deque
+    
     
     def _get_closed_trades(self):
         """
@@ -1125,6 +1397,628 @@ class Person:
 
         self.starting_balance = estimated_starting_balance  # Store inferred balance
         return estimated_starting_balance
+
+
+    def calculate_news_reaction_metrics(self, news_events, reaction_window_minutes=30):
+        """
+        Calculate metrics related to how quickly and effectively the person reacts to news events.
+        
+        :param news_events: List of tuples (symbol, event_time, price_before, price_after)
+        :param reaction_window_minutes: Maximum time window to consider for reactions
+        :return: Dictionary of reaction metrics
+        """
+        reactions = []
+        
+        for event in news_events:
+            symbol, event_time, price_before, price_after = event
+            
+            # Ensure event_time is a datetime object
+            if isinstance(event_time, str):
+                event_time = parser.parse(event_time)
+            
+            # Price direction (1 for up, -1 for down)
+            price_direction = 1 if price_after > price_before else -1
+            price_change_pct = abs((price_after - price_before) / price_before * 100)
+            
+            # Look for trades in this stock after the event
+            for order in self.order_history:
+                order_time = order['time']
+                
+                # Ensure order_time is a datetime object
+                if isinstance(order_time, str):
+                    order_time = parser.parse(order_time)
+                
+                # Normalize timezone information
+                if order_time.tzinfo and not event_time.tzinfo:
+                    event_time = event_time.replace(tzinfo=order_time.tzinfo)
+                elif event_time.tzinfo and not order_time.tzinfo:
+                    order_time = order_time.replace(tzinfo=event_time.tzinfo)
+                
+                if order['stock'] == symbol and order_time > event_time:
+                    # Calculate reaction time in minutes
+                    reaction_time = (order_time - event_time).total_seconds() / 60
+                    
+                    # Only consider reactions within the window
+                    if reaction_time <= reaction_window_minutes:
+                        # Check if trade direction aligns with price movement
+                        trade_direction = 1 if order['action'] == 'buy' else -1
+                        aligned_with_movement = (trade_direction == price_direction)
+                        
+                        reactions.append({
+                            'event_time': event_time,
+                            'reaction_time': reaction_time,
+                            'symbol': symbol,
+                            'price_change_pct': price_change_pct,
+                            'aligned_with_movement': aligned_with_movement,
+                            'trade_size': order['quant']
+                        })
+                        break  # Only consider first reaction to each event
+        
+        # Calculate metrics
+        if not reactions:
+            print("not enough reactions")
+            return {
+                'reaction_count': 0,
+                'avg_reaction_time': None,
+                'median_reaction_time': None,
+                'alignment_rate': None,
+                'reaction_speed_score': None,
+                'weighted_reaction_score': None
+            }
+        
+        reaction_times = [r['reaction_time'] for r in reactions]
+        alignment_rate = sum(1 for r in reactions if r['aligned_with_movement']) / len(reactions)
+        
+        # Calculate weighted metrics (larger price moves and larger trades get more weight)
+        weighted_reaction_times = []
+        weights = []
+        
+        for r in reactions:
+            # Weight by price change percentage and trade size
+            weight = r['price_change_pct'] * r['trade_size']
+            weighted_reaction_times.append(r['reaction_time'] * weight)
+            weights.append(weight)
+        
+        weighted_avg_reaction_time = sum(weighted_reaction_times) / sum(weights) if sum(weights) > 0 else None
+        
+        # Calculate a composite score (lower is better for reaction time, higher is better for alignment)
+        # Normalize reaction time (1 = instant reaction, 0 = slowest possible within window)
+        normalized_reaction_time = 1 - (sum(reaction_times) / len(reaction_times) / reaction_window_minutes)
+        reaction_speed_score = normalized_reaction_time * alignment_rate
+
+        print(f"Reaction Speed Score: {reaction_speed_score}, Alignment Rate: {alignment_rate}")
+        print(f"Weighted Avg Reaction Time: {weighted_avg_reaction_time}, Avg Reaction Time: {sum(reaction_times) / len(reaction_times)}")
+        print(f"Median Reaction Time: {sorted(reaction_times)[len(reaction_times) // 2]}")
+        print(f"Reaction Count: {len(reactions)}")
+        print(f"Reactions: {reactions}")
+        # Return metrics
+        
+        return {
+            'reaction_count': len(reactions),
+            'avg_reaction_time': sum(reaction_times) / len(reaction_times),
+            'median_reaction_time': sorted(reaction_times)[len(reaction_times) // 2],
+            'alignment_rate': alignment_rate,
+            'reaction_speed_score': reaction_speed_score,
+            'weighted_reaction_score': weighted_avg_reaction_time
+        }
+    
+
+
+    def calculate_log_return_from_orders(self, exchange):
+        """
+        Calculates log return from order history using valid buys and sells.
+        Ignores sells that exceed owned quantities.
+
+        :param exchange: Exchange object with market prices.
+        :return: log return (float)
+        """
+        from collections import defaultdict
+        import numpy as np
+
+        invested_cash = 0.0
+        sell_proceeds = 0.0
+        holdings = defaultdict(float)
+
+        for order in sorted(self.order_history, key=lambda x: x['time']):
+            action = order['action']
+            stock = order['stock']
+            quantity = order['quant']
+            cost = order['cost']
+
+            if action == 'buy':
+                invested_cash += cost
+                holdings[stock] += quantity
+            elif action == 'sell':
+                if holdings[stock] >= quantity:
+                    holdings[stock] -= quantity
+                    sell_proceeds += cost
+                else:
+                    # Skip invalid sell
+                    continue
+
+        # Add value of remaining holdings to final wealth
+        portfolio_value = 0.0
+        for stock, qty in holdings.items():
+            if qty <= 0:
+                continue
+            try:
+                latest_price = exchange.get_stock(stock).get_latest_price()[1]
+                if not isinstance(latest_price, (float, int)) or np.isnan(latest_price):
+                    latest_price = 0.0
+                portfolio_value += qty * latest_price
+            except:
+                continue
+
+        final_wealth = sell_proceeds + portfolio_value
+
+        if invested_cash <= 0 or final_wealth <= 0:
+            print(f"Invalid cash or invested cash values. Returning 0.0")
+            print(f"invested: {invested_cash}, final_wealth: {final_wealth}")
+            return 0.0
+
+        return float(np.log(final_wealth / invested_cash))
+
+
+    
+    def calculate_news_alpha(self, news_events, reaction_window_minutes=30, market_avg_reaction_time=None):
+        """
+        Calculate a trader's "news alpha" - how much better they react to news compared to the market.
+        
+        :param news_events: List of news events
+        :param reaction_window_minutes: Maximum time window to consider
+        :param market_avg_reaction_time: Average reaction time across all traders
+        :return: News alpha score (higher is better)
+        """
+        metrics = self.calculate_news_reaction_metrics(news_events, reaction_window_minutes)
+        
+        if metrics['reaction_count'] < 5 or not market_avg_reaction_time:
+            return 0.0  # Not enough data
+        
+        # How much faster than average (as a percentage)
+        speed_advantage = (market_avg_reaction_time - metrics['avg_reaction_time']) / market_avg_reaction_time
+        
+        # Combine speed advantage with accuracy
+        news_alpha = speed_advantage * metrics['alignment_rate']
+        
+        return news_alpha
+
+    def calculate_market_reaction_stats(people, news_events):
+        """
+        Calculate market-wide statistics for news reaction times.
+        
+        :param people: List of Person objects
+        :param news_events: List of news events
+        :return: Dictionary of market-wide statistics
+        """
+        all_reaction_times = []
+        
+        for person in people:
+            metrics = person.calculate_news_reaction_metrics(news_events)
+            if metrics['reaction_count'] > 0 and metrics['avg_reaction_time'] is not None:
+                all_reaction_times.append(metrics['avg_reaction_time'])
+        
+        if not all_reaction_times:
+            return {
+                'market_avg_reaction_time': None,
+                'market_median_reaction_time': None
+            }
+        
+        return {
+            'market_avg_reaction_time': sum(all_reaction_times) / len(all_reaction_times),
+            'market_median_reaction_time': sorted(all_reaction_times)[len(all_reaction_times) // 2]
+        }
+
+    def generate_news_reaction_table(people, news_events):
+        """
+        Generate a table of news reaction metrics for all traders.
+        
+        :param people: List of Person objects
+        :param news_events: List of news events
+        :return: List of dictionaries with trader metrics
+        """
+        market_stats = calculate_market_reaction_stats(people, news_events)
+        market_avg_reaction_time = market_stats['market_avg_reaction_time']
+        
+        table_data = []
+        
+        for person in people:
+            metrics = person.calculate_news_reaction_metrics(news_events)
+            news_alpha = person.calculate_news_alpha(news_events, market_avg_reaction_time=market_avg_reaction_time)
+            
+            row = {
+                'trader_id': person.id,
+                'reaction_count': metrics['reaction_count'],
+                'avg_reaction_time': metrics['avg_reaction_time'],
+                'median_reaction_time': metrics['median_reaction_time'],
+                'alignment_rate': metrics['alignment_rate'],
+                'reaction_speed_score': metrics['reaction_speed_score'],
+                'news_alpha': news_alpha
+            }
+            
+            table_data.append(row)
+        
+        # Sort by news alpha (higher is better)
+        return sorted(table_data, key=lambda x: x['news_alpha'] if x['news_alpha'] is not None else -float('inf'), reverse=True)
+
+
+    def calculate_return_consistency(self, lambda_smoothing=0.01, global_median=None):
+        """
+        Calculate the consistency of returns using lag-1 autocorrelation.
+        
+        A high positive value suggests skill or repeatability.
+        Uses closed trades for return series.
+        
+        :param lambda_smoothing: To prevent instability with low sample sizes.
+        :param global_median: If insufficient data, use this as a fallback.
+        :return: Lag-1 autocorrelation of trade returns, smoothed.
+        """
+        closed_trades = self._get_closed_trades()
+        
+        # Extract returns
+        returns = [
+            (t['sell_price'] - t['buy_price']) / t['buy_price']
+            for t in closed_trades
+            if t['buy_price'] > 0
+        ]
+        
+        if len(returns) < 3:
+            return global_median if global_median is not None else 0.0
+
+        # Convert to numpy for calculation
+        returns = np.array(returns)
+        mean_return = np.mean(returns)
+
+        # Compute lag-1 autocorrelation: cov(r_t, r_{t-1}) / var(r)
+        numerator = np.sum((returns[1:] - mean_return) * (returns[:-1] - mean_return))
+        denominator = np.sum((returns - mean_return) ** 2) + lambda_smoothing  # Prevent zero-variance
+
+        autocorr = numerator / denominator
+        return float(autocorr)
+
+    def calculate_return_skewness(self, global_median=None):
+        """
+        Calculates skewness of returns from closed trades.
+        
+        Positive skew → occasional big wins, mostly small gains/losses.
+        Negative skew → occasional big losses.
+        """
+        closed_trades = self._get_closed_trades()
+        returns = [
+            (t['sell_price'] - t['buy_price']) / t['buy_price']
+            for t in closed_trades
+            if t['buy_price'] > 0
+        ]
+
+        if len(returns) < 3:
+            return global_median if global_median is not None else 0.0
+        
+        return float(scipy.stats.skew(returns))
+    
+    def calculate_return_kurtosis(self, global_median=None):
+        """
+        Calculates kurtosis of returns from closed trades.
+        
+        High kurtosis → more extreme outliers (either wins or losses).
+        Low kurtosis → more stable, consistent return profile.
+        """
+        closed_trades = self._get_closed_trades()
+        returns = [
+            (t['sell_price'] - t['buy_price']) / t['buy_price']
+            for t in closed_trades
+            if t['buy_price'] > 0
+        ]
+
+        if len(returns) < 3:
+            return global_median if global_median is not None else 0.0
+        
+        return float(scipy.stats.kurtosis(returns, fisher=True))  # Fisher=True → normal dist has kurtosis 0
+    
+    def calculate_information_gain_from_price(self, exchange, threshold=0.8, global_median=None):
+        """
+        Approximates information gain by inferring market outcome from final price.
+
+        If price > threshold → market likely resolved TRUE
+        If price < 1 - threshold → market likely resolved FALSE
+        Prices in between are ignored.
+
+        :param exchange: StockPortfolio object (to access final prices)
+        :param threshold: Confidence threshold (e.g. 0.8 = 80%)
+        :param global_median: Fallback value if not enough scorable trades
+        :return: Estimated information gain (0–1)
+        """
+        correct = 0
+        total = 0
+
+        for order in self.order_history:
+            stock = order['stock']
+            action = order['action']
+
+            stock_obj = exchange.get_stock(stock)
+            if not stock_obj:
+                continue
+
+            latest_price = stock_obj.get_latest_price()
+            if not latest_price or not isinstance(latest_price[1], (float, int)):
+                continue
+
+            price = latest_price[1]
+
+            # Infer outcome from price
+            if price >= threshold:
+                inferred_outcome = True
+            elif price <= 1 - threshold:
+                inferred_outcome = False
+            else:
+                continue  # Price too close to 0.5 — skip ambiguous cases
+
+            if action == 'buy' and inferred_outcome:
+                correct += 1
+            elif action == 'sell' and not inferred_outcome:
+                correct += 1
+
+            total += 1
+
+        if total == 0:
+            return global_median if global_median is not None else 0.5
+
+        return correct / total
+
+
+    def calculate_return_mad(self, global_median=None):
+        """
+        Calculates the Median Absolute Deviation (MAD) of trade returns.
+        
+        This is a robust alternative to standard deviation, less sensitive to outliers.
+        
+        :param global_median: Value to return if insufficient data
+        :return: MAD of returns (float)
+        """
+        closed_trades = self._get_closed_trades()
+        
+        returns = [
+            (t['sell_price'] - t['buy_price']) / t['buy_price']
+            for t in closed_trades
+            if t['buy_price'] > 0
+        ]
+        
+        if len(returns) < 2:
+            return global_median if global_median is not None else 0.0
+
+        median = np.median(returns)
+        abs_devs = [abs(r - median) for r in returns]
+        mad = np.median(abs_devs)
+
+        return float(mad)
+
+
+    def _calculate_gini(self, values):
+        """
+        Computes the Gini coefficient for a list of values.
+        Returns 0 if all values are equal, 1 if all inequality.
+        """
+        if len(values) == 0:
+            return 0.0
+        
+        values = np.array(values)
+        if np.all(values == 0):
+            return 0.0
+
+        values = np.sort(values)
+        n = len(values)
+        cumulative = np.cumsum(values)
+        gini = (2 * np.sum((np.arange(1, n+1) * values))) / (n * np.sum(values)) - (n + 1) / n
+
+        return float(gini)
+    
+    def calculate_gini_bet_size(self):
+        """
+        Measures inequality of trade sizes.
+        A value near 1 = one or two huge trades dominate activity.
+        Near 0 = even distribution of trade sizes.
+        """
+        sizes = [order['quant'] for order in self.order_history if order['quant'] > 0]
+        return self._calculate_gini(sizes)
+    
+    def calculate_gini_return_distribution(self):
+        """
+        Measures inequality of per-trade profit/loss.
+        Value near 1 = a few trades contribute most of the PnL.
+        """
+        closed_trades = self._get_closed_trades()
+        profits = [abs(t['pnl']) for t in closed_trades if t['pnl'] != 0]
+        return self._calculate_gini(profits)
+
+    def calculate_outlier_ratio(self, k=3.0, global_median=None):
+        """
+        Calculates the fraction of trades that are outliers based on return IQR.
+        
+        A trade is an outlier if its return is more than k×IQR below Q1 or above Q3.
+        
+        :param k: Outlier threshold multiplier (default: 3.0)
+        :param global_median: Fallback if too few trades
+        :return: Fraction of returns that are outliers
+        """
+        closed_trades = self._get_closed_trades()
+
+        returns = [
+            (t['sell_price'] - t['buy_price']) / t['buy_price']
+            for t in closed_trades
+            if t['buy_price'] > 0
+        ]
+
+        if len(returns) < 4:
+            return global_median if global_median is not None else 0.0
+
+        q1 = np.percentile(returns, 25)
+        q3 = np.percentile(returns, 75)
+        iqr = q3 - q1
+
+        lower_bound = q1 - k * iqr
+        upper_bound = q3 + k * iqr
+
+        outliers = [r for r in returns if r < lower_bound or r > upper_bound]
+        ratio = len(outliers) / len(returns)
+
+        return float(ratio)
+
+    def calculate_relative_exit_efficiency(self, exchange, lookahead_minutes=60, global_median=None):
+        """
+        Estimates how well the trader captures price swings after entry.
+
+        For each closed trade:
+        - Compare exit price to the best price reached within N minutes after entry
+        - Score is normalized: 1 = perfect exit, 0 = worst case
+
+        :param exchange: StockPortfolio with historical prices
+        :param lookahead_minutes: Time window to evaluate price swing
+        :param global_median: Fallback value
+        :return: Average relative efficiency across trades
+        """
+        from bisect import bisect_right
+        from datetime import timedelta
+
+        closed_trades = self._get_closed_trades()
+        efficiencies = []
+
+        for trade in closed_trades:
+            stock = trade['stock']
+            buy_time = trade['buy_time']
+            sell_time = trade['sell_time']
+            buy_price = trade['buy_price']
+            sell_price = trade['sell_price']
+
+            if stock not in exchange.stocks:
+                continue
+
+            prices = exchange.stocks[stock].get_prices()
+            if not prices:
+                continue
+
+            # Extract prices in the lookahead window after entry
+            lookahead_end = buy_time + timedelta(minutes=lookahead_minutes)
+            from dateutil import parser  # add at top if not already
+
+            future_prices = [
+                p for t, p in prices
+                if buy_time < parser.parse(t) <= lookahead_end
+            ]
+
+
+
+            if not future_prices:
+                continue
+
+            if sell_price >= buy_price:
+                # For long trades: compare to max price
+                best_price = max(future_prices)
+                if best_price != buy_price:
+                    efficiency = (sell_price - buy_price) / (best_price - buy_price)
+                    efficiency = min(max(efficiency, 0), 1)
+                    efficiencies.append(efficiency)
+            else:
+                # For short trades: compare to min price
+                best_price = min(future_prices)
+                if best_price != buy_price:
+                    efficiency = (buy_price - sell_price) / (buy_price - best_price)
+                    efficiency = min(max(efficiency, 0), 1)
+                    efficiencies.append(efficiency)
+
+        if not efficiencies:
+            return global_median if global_median is not None else 0.5  # Neutral default
+
+        return float(np.mean(efficiencies))
+    
+    def calculate_panic_sell_score(self, exchange, short_holding_days=1.0, price_drop_threshold=0.01, global_median=None):
+        """
+        Approximates panic selling behavior.
+        
+        A panic sell is defined as:
+        - Selling at a price lower than entry
+        - Within a short holding time (e.g., 1 day)
+        - Optional: price didn’t rebound after sell (not implemented here)
+        
+        :param exchange: StockPortfolio object for price reference
+        :param short_holding_days: Max duration (in days) considered "short"
+        :param price_drop_threshold: Min % drop to count as a panic-trigger (e.g. 0.01 = 1%)
+        :param global_median: Fallback return value if no trades
+        :return: Fraction of closed trades flagged as panic sells
+        """
+        closed_trades = self._get_closed_trades()
+        if not closed_trades:
+            return global_median if global_median is not None else 0.0
+
+        panic_count = 0
+        total_closed = 0
+
+        for trade in closed_trades:
+            holding_days = (trade['sell_time'] - trade['buy_time']).total_seconds() / (60 * 60 * 24)
+            pnl_pct = (trade['sell_price'] - trade['buy_price']) / trade['buy_price']
+
+            if holding_days <= short_holding_days and pnl_pct < -price_drop_threshold:
+                panic_count += 1
+
+            total_closed += 1
+
+        return panic_count / total_closed if total_closed > 0 else 0.0
+    
+    def calculate_average_portfolio_risked(self, exchange, lambda_smoothing=1e-6, global_median=None):
+        """
+        Calculates average proportion of portfolio risked per BUY trade.
+        
+        Formula:
+        amount_spent / (portfolio_value + balance at that time)
+        
+        :param exchange: StockPortfolio object to get valuations
+        :param lambda_smoothing: To avoid division by zero
+        :param global_median: Fallback return value
+        :return: Average portfolio risk ratio (0–1+), higher = riskier
+        """
+        if not self.order_history:
+            return global_median if global_median is not None else 0.0
+
+        running_balance = self.balance
+        portfolio_snapshot = {}  # stock -> (shares, total cost)
+        ratios = []
+
+        for order in sorted(self.order_history, key=lambda o: o['time']):
+            stock = order['stock']
+            action = order['action']
+            quant = order['quant']
+            cost = order['cost']
+
+            if action.lower() == 'buy':
+                # Estimate portfolio value BEFORE the trade
+                portfolio_value = 0.0
+                for s, (shares, total_cost) in portfolio_snapshot.items():
+                    stock_obj = exchange.get_stock(s)
+                    price = stock_obj.get_latest_price()[1] if stock_obj and stock_obj.get_latest_price() else 0.0
+                    portfolio_value += shares * price
+
+                denom = portfolio_value + running_balance + lambda_smoothing
+                risk_ratio = cost / denom
+                ratios.append(risk_ratio)
+
+                # Update state after trade
+                running_balance -= cost
+                if stock not in portfolio_snapshot:
+                    portfolio_snapshot[stock] = [0.0, 0.0]
+                portfolio_snapshot[stock][0] += quant
+                portfolio_snapshot[stock][1] += cost
+
+            elif action.lower() == 'sell':
+                running_balance += cost
+                if stock in portfolio_snapshot:
+                    avg_price = portfolio_snapshot[stock][1] / max(portfolio_snapshot[stock][0], lambda_smoothing)
+                    portfolio_snapshot[stock][0] -= quant
+                    portfolio_snapshot[stock][1] -= quant * avg_price
+                    if portfolio_snapshot[stock][0] <= 0:
+                        del portfolio_snapshot[stock]
+
+        if not ratios:
+            return global_median if global_median is not None else 0.0
+
+        return float(np.mean(ratios))
+
 
 
 
