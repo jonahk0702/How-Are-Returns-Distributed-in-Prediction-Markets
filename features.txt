@@ -1,4 +1,4 @@
-📈 RETURNS & PROFITABILITY
+RETURNS & PROFITABILITY
 
 - realized_return_ratio() – Realized profit relative to cost.
 - mark_to_market_return(exchange) – Realized + unrealized return.
@@ -14,7 +14,7 @@
 - calculate_kelly_criterion() – Optimal % of capital to bet.
 
 
-📉 RISK & VOLATILITY
+RISK & VOLATILITY
 
 - calculate_volatility_of_return() – Std dev of returns.
 - calculate_sharpe_ratio(...) – Risk-adjusted return.
@@ -30,7 +30,7 @@
 - calculate_outlier_ratio(...) – Frequency of return outliers.
 
 
-🧠 BEHAVIORAL / STYLE-BASED
+BEHAVIORAL / STYLE-BASED
 
 - calculate_momentum_score(exchange) – Trend-following tendency.
 - calculate_mean_reversion_score(exchange) – Contrarian trading tendency.
@@ -47,7 +47,7 @@
 - generate_news_reaction_table(...) – Summary of all traders’ news reactions.
 
 
-⌛ TIME & HOLDING-BASED
+TIME & HOLDING-BASED
 
 - calculate_average_holding_time() – Days between buy and sell.
 - calculate_trade_duration() – Avg duration positions held.
@@ -55,13 +55,13 @@
 - calculate_panic_sell_score(...) – Detects emotion-based exits.
 
 
-📊 MARKET-SPECIFIC / RESOLUTION-BASED
+MARKET-SPECIFIC / RESOLUTION-BASED
 
 - outcome_adjusted_return(correct_outcomes) – Adjusted return if outcomes are binary.
 - calculate_information_gain_from_price(...) – Did trader infer the market outcome?
 
 
-⚙️ INTERNAL TOOLS / HELPERS
+INTERNAL TOOLS / HELPERS
 
 - _get_closed_trades() – Constructs clean matched trades.
 - infer_starting_balance(exchange) – Estimates starting cash.

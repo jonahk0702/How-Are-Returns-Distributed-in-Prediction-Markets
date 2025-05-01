@@ -60,3 +60,4 @@ class StockPrices:
             return None
         return self.prices[-1]
     
+

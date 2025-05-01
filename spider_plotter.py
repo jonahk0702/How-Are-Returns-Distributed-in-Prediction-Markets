@@ -72,3 +72,4 @@ plt.title('Spider Chart: Trading Metrics', size=18, y=1.1)
 # Adjust layout and display
 plt.tight_layout()
 plt.show()
+

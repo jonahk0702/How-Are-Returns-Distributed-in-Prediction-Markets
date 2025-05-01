@@ -48,3 +48,4 @@ class StockPortfolio:
                     news_events.append((symbol, curr_time, prev_price, curr_price))
         
         return news_events
+
