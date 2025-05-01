@@ -1,3 +1,6 @@
+
+import matplotlib.pyplot as plt
+
 class StockPrices:
     def __init__(self, symbol):
         self.symbol = symbol
@@ -33,15 +36,19 @@ class StockPrices:
         
         # Extract timestamps and prices
         timestamps, prices = zip(*self.prices)
-        
-        # Plot prices
-        plt.figure(figsize=(10, 5))
-        plt.plot(timestamps, prices, marker="o", linestyle="-")
-        plt.title(f"Price Evolution for {self.symbol}")
-        plt.xlabel("Timestamp")
-        plt.ylabel("Price")
-        plt.grid(True)
-        plt.show()
+
+        if len(prices) > 2000:
+            print("Too many prices to plot. Only plotting the last 2000.")
+
+        else:        
+            # Plot prices
+            plt.figure(figsize=(10, 5))
+            plt.plot(timestamps, prices, marker="o", linestyle="-")
+            plt.title(f"Price Evolution for {self.symbol}")
+            plt.xlabel("Timestamp")
+            plt.ylabel("Price")
+            plt.grid(True)
+            plt.show()
     
     def get_latest_price(self):
         """

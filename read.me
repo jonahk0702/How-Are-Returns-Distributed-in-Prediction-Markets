@@ -1,0 +1,151 @@
+# Polymarket trades Analyze
+
+> Analyze trading behavior like never before!
+
+## Brief overview
+The goals was to be able to analyze returns and traits of people on the platform Polymarket. It turned out to be way more complex than expected.
+
+Getting the data requires sql calls to Bigquery to access the Public Dataset. Creating the query took research.
+
+Then the dataset was built with thousands of queries like this one... But that was the encrypted dataset...
+
+In order to decrypt it took in depth knowledge in the workings of Polymarket.
+
+Then we had a raw dataset. We needed to follow the research we'd read and create predictors! These are metrics which summarise a person behaviour
+i.e. their general risk tolerance.
+
+Only once that was done, we could do some modeling, which we did as much as could be done!
+
+
+
+```
+                                    +-------------+
+                                    |             |
+                                    |   Trading   |
+                                    |   Analysis  |
+                                    |   Engine    |
+                                    |             |
+                                    +------+------+
+                                           
+                                           
+                                           
+   +------------+    +-------------+    +--+-------+    +--------------+
+   |            |    |             |    |          |    |              |
+   | Raw Market +---->  Process    +---->  Analyze +---->  Visualize   |
+   |    Data    |    |   Data      |    |  Trades  |    |   Results    |
+   |            |    |             |    |          |    |              |
+   +------------+    +-------------+    +----------+    +--------------+
+```
+
+## How it works!
+
+- **Data Processing**: Import and process trading data from GOOLGE and save to csv (Runtime - 2 Hours)
+- **Trader Analysis**: Evaluate individual trading behaviors with 40+ metrics (Runtime - 10 hours)
+- **Portfolio Tracking**: Monitor stock prices and portfolio performance (Instant)
+- **Visualization**: Generate graphs and visual representations of trading patterns (runtime - 20 minutes)
+- **Advanced Metrics**: Calculate everything from basic returns to complex behavioral indicators (Instant)
+
+## Project Structure 🏗️
+
+```
+📂 Project Root
+ ┣ 📜 main.ipynb ---------------------- Main entry point
+ ┣ 📜 person.py ----------------------- Individual trader model
+ ┣ 📜 people.py ----------------------- Collection of traders
+ ┣ 📜 stockExchange.py --------------- Portfolio management 
+ ┣ 📜 stock.py ------------------------ Stock price tracking
+ ┣ 📜 processPoly.py ----------------- Data processing for Polymarket
+ ┣ 📜 featureCreator.py -------------- Generate trading metrics
+ ┣ 📜 grapher.py --------------------- Visualization tools
+ ┣ 📜 spider_plotter.py -------------- Radar chart for metrics
+ ┗ 📂 data
+   ┣ 📜 people_all.pkl --------------- Saved trader data
+   ┣ 📜 stocks.pkl ------------------- Saved stock data
+   ┣ 📜 matched_orders.csv ----------- Processed order data
+   ┣ 📜 filled_orders.csv ------------ Completed transactions
+   ┗ 📜 features_*.csv --------------- Generated metrics
+ ┗ 📂 Analysis
+   ┣ 📜 Full Analysis Notebook.ipynb --------------- Here we doing all modeling! NB
+   ┣ 📜 Df_Full.csv --------------- The processed dataset
+  
+```
+
+Note, you will not have access to the data, as a result of it being too big to fit on Github. But if you want it, we can share it easily.
+However, it is big (around 3Gb)
+
+
+
+
+## Available Metrics 📊
+
+The system calculates over 40 different metrics to analyze trader behavior:
+
+```
+   +---------------------------------------+
+   |                                       |
+   |         Trading Metrics               |
+   |                                       |
+   +---------------------------------------+
+          |              |              |
+          v              v              v
+ +----------------+ +-----------+ +-------------+
+ |                | |           | |             |
+ | RETURNS &      | | RISK &    | | BEHAVIORAL  |
+ | PROFITABILITY  | | VOLATILITY| | PATTERNS    |
+ |                | |           | |             |
+ +----------------+ +-----------+ +-------------+
+ | • Win Rate     | | • Sharpe  | | • Momentum  |
+ | • Profit Factor| | • Max     | | • Mean      |
+ | • Return Ratio | |   Drawdown| |   Reversion |
+ | • Cash Multiple| | • Volatil | | • Risk      |
+ | • Kelly Crit.  | |   -ity    | |   Tolerance |
+ +----------------+ +-----------+ +-------------+
+ And many many more!
+```
+
+### Key Metric Categories:
+
+1. **Return & Profitability**: How much you win
+2. **Risk & Volatility**: How much you might lose
+3. **Behavioral Patterns**: How you make decisions
+4. **Time & Holding**: When you trade
+5. **Market-Specific**: What you know that others don't
+
+## How To Use The Spider Charts 🕸️
+
+The spider charts provide a visual representation of a trader's metrics across different dimensions:
+
+```
+                 Sharpe Ratio
+                      |
+                      |
+                      |
+      Win Rate -------+------- Risk Tolerance
+                     /|\
+                    / | \
+                   /  |  \
+                  /   |   \
+     Volatility -+    |    +- Profit Factor
+                  \   |   /
+                   \  |  /
+                    \ | /
+                     \|/
+       Exposure ------+------ Return
+                      |
+                      |
+                      |
+                Max Drawdown
+```
+
+Higher values generally indicate better performance, but some metrics may be more relevant to specific trading styles than others.
+
+
+
+### Usage
+
+1. The main.py goes through all the steps in creating the dataset.
+2. It links to all scripts that run desired Compounded
+3. Functions are commented out, but to recreate the dataset, uncomment them.
+4. Note this can all be run for free! But API usage does have an account. I deactivatded my service account before going public, so you'll have to add your own.
+5. That will output a csv.
+6. Use the Full Analysis Notebook to do the analysis!
