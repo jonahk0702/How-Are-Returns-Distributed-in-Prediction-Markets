@@ -134,3 +134,5 @@ def create_feature_df(poeple, stocks, extension_old, extension_new, feature_id):
 
     df.to_csv(f"./data/features_{extension_new}.csv", index=False)
     print("done!")
+
+
