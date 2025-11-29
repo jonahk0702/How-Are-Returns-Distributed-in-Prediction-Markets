@@ -76,7 +76,7 @@ However, it is big (around 3Gb)
 
 
 
-## Available Metrics 📊
+## Available Metrics 
 
 The system calculates over 40 different metrics to analyze trader behavior:
 
@@ -110,35 +110,6 @@ The system calculates over 40 different metrics to analyze trader behavior:
 3. **Behavioral Patterns**: How you make decisions
 4. **Time & Holding**: When you trade
 5. **Market-Specific**: What you know that others don't
-
-## How To Use The Spider Charts 🕸️
-
-The spider charts provide a visual representation of a trader's metrics across different dimensions:
-
-```
-                 Sharpe Ratio
-                      |
-                      |
-                      |
-      Win Rate -------+------- Risk Tolerance
-                     /|\
-                    / | \
-                   /  |  \
-                  /   |   \
-     Volatility -+    |    +- Profit Factor
-                  \   |   /
-                   \  |  /
-                    \ | /
-                     \|/
-       Exposure ------+------ Return
-                      |
-                      |
-                      |
-                Max Drawdown
-```
-
-Higher values generally indicate better performance, but some metrics may be more relevant to specific trading styles than others.
-
 
 
 ### Usage
